@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Sensor Data</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    #data { margin-top: 20px; }
+    .sensor { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>ESP32 Sensor Data</h1>
+  <div id="data">
+    <div class="sensor">Temperature: <span id="temperature"></span> °C</div>
+    <div class="sensor">Humidity: <span id="humidity"></span> %</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+  <script>
+    // MQTT broker details
+    const mqttBroker = 'broker.emqx.io';
+    const mqttPort = 8084; // WebSockets port
+    const mqttTopic = 'project-nandur-sub/1';
+
+    // Create a client instance
+    const client = new Paho.MQTT.Client(mqttBroker, mqttPort, '/mqtt', 'web_client_' + Math.random().toString(16).substr(2, 8));
+
+    // Set callback handlers
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+
+    // Connect the client
+    client.connect({
+      onSuccess: onConnect,
+      onFailure: onFailure,
+      useSSL: true // Use secure WebSocket connection
+    });
+
+    // Called when the client connects
+    function onConnect() {
+      console.log('Connected to MQTT broker');
+      client.subscribe(mqttTopic, { onSuccess: onSubscribeSuccess, onFailure: onSubscribeFailure });
+    }
+
+    // Called when the client fails to connect
+    function onFailure(responseObject) {
+      console.log('Failed to connect: ' + responseObject.errorMessage);
+    }
+
+    // Called when the subscription is successful
+    function onSubscribeSuccess() {
+      console.log('Subscribed to topic: ' + mqttTopic);
+    }
+
+    // Called when the subscription fails
+    function onSubscribeFailure(responseObject) {
+      console.log('Failed to subscribe: ' + responseObject.errorMessage);
+    }
+
+    // Called when the client loses its connection
+    function onConnectionLost(responseObject) {
+      if (responseObject.errorCode !== 0) {
+        console.log('onConnectionLost:', responseObject.errorMessage);
+      }
+    }
+
+    // Called when a message arrives
+    async function onMessageArrived(message) {
+      console.log('onMessageArrived:', message.payloadString);
+      try {
+        const data = JSON.parse(message.payloadString);
+
+        const temperature = data.Temperature !== null ? data.Temperature.toFixed(2) : 'null';
+        const humidity = data.Humidity !== null ? data.Humidity.toFixed(2) : 'null';
+
+        document.getElementById('temperature').innerText = temperature;
+        document.getElementById('humidity').innerText = humidity;
+
+        try {
+        const response = await fetch('http://localhost:3100/save-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ Temperature: parseFloat(temperature), Humidity: parseFloat(humidity) })
+      });
+
+      const responseData = await response.text();
+      console.log(responseData);
+    } catch (fetchError) {
+      console.error('Fetch Error:', fetchError);
+    }
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+      }
+    }
+  </script>
+</body>
+</html>
