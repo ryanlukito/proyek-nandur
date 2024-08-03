@@ -4,7 +4,7 @@
 #include <ArduinoJson.h>
 #include <WiFiManager.h>
 
-const int DHT_PIN = 21;  
+const int DHT_PIN = 25;  
 // const char *ssid = "GOWINDA";
 // const char *password = "06111967";
 
@@ -99,5 +99,4 @@ void loop() {
 
     delay(2000);
   }
-
 }
